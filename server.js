@@ -2,6 +2,7 @@ import express from  "express"
 import dotenv from "dotenv"
 import cors from "cors"
 import authRouter from "./routers/authRouter.js";
+import careerRouter from "./routers/careerRouter.js";
 import {setupDB} from "./config/db.js";
 
 dotenv.config()
@@ -13,6 +14,7 @@ app.use(cors({
 app.use(express.json());
 
 app.use("/api/auth",authRouter)
+app.use("/api/careers",careerRouter)
 
 setupDB()
 app.listen(process.env.PORT,()=>{

@@ -1,8 +1,8 @@
-import {Mongoose, Schema} from "mongoose";
+import mongoose, {Schema} from "mongoose";
 
 export const FiltersSchema = new Schema({
     budget: [Number],
-    career: [{type: Mongoose.Schema.Types.ObjectId, ref: "Careers"}],
+    career: [{type: mongoose.Schema.Types.ObjectId, ref: "Careers"}],
     degree: {type: Number},
     duration: {type: Number},
     experience: {type: Number},

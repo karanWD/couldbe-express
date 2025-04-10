@@ -12,8 +12,21 @@ const UserSchema = new Schema({
     password: {type: String, required: true},
     birth_date: {type: Date, required: true},
     sex: {type: Number, enum: [1, 2, 3]},
-    courses: CoursesSchema,
-    filters: FiltersSchema,
+    courses: {
+        type: CoursesSchema,
+        default: () => ({ books: [], video: [], article: [] })
+    },
+    filters: {
+        type:FiltersSchema,
+        default:()=>({
+            budget: null,
+            career: null,
+            degree: null,
+            duration: null,
+            experience: null,
+            format: null
+        })
+    },
     character_type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Characters'}]
 }, {
     timestamps: true
