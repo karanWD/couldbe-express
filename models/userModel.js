@@ -16,10 +16,10 @@ const UserSchema = new Schema({
         type: CoursesSchema,
         default: () => ({ books: [], video: [], article: [] })
     },
-    filters: {
+    preferences: {
         type:FiltersSchema,
         default:()=>({
-            budget: null,
+            budget: [0,100000],
             career: null,
             degree: null,
             duration: null,

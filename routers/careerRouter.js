@@ -3,6 +3,6 @@ import {getCareers} from "../controllers/careerController.js";
 
 const router = Router()
 
-router.post("/",getCareers)
+router.get("/",getCareers)
 
 export default router
