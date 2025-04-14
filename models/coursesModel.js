@@ -6,12 +6,12 @@ export const CoursesSchema = new Schema({
         ref: 'Books',
         default: []
     },
-    video: {
+    videos: {
         type: [mongoose.Schema.Types.ObjectId],
         ref: 'Videos',
         default: []
     },
-    article: {
+    articles: {
         type: [mongoose.Schema.Types.ObjectId],
         ref: 'Articles',
         default: []

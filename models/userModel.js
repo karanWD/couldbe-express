@@ -14,7 +14,7 @@ const UserSchema = new Schema({
     sex: {type: Number, enum: [1, 2, 3]},
     courses: {
         type: CoursesSchema,
-        default: () => ({ books: [], video: [], article: [] })
+        default: () => ({ books: [], videos: [], articles: [] })
     },
     preferences: {
         type:FiltersSchema,
