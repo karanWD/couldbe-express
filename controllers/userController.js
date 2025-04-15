@@ -5,6 +5,8 @@ import UserModel from "../models/userModel.js";
 import BooksModel from "../models/booksModel.js";
 import VideosModel from "../models/videosModel.js";
 import ArticlesModel from "../models/articlesModel.js";
+import videosModel from "../models/videosModel.js";
+import articlesModel from "../models/articlesModel.js";
 
 export const submitPreferences = async (req, res) => {
   try {
@@ -155,7 +157,7 @@ export const getCoursesSuggestions = async (req, res) => {
   try {
     const {id} = req.userData;
 
-    const user = await UserModel.findById(id).populate("character_type");
+    const user = await UserModel.findById(id).populate("character_type")
     if (!user || !user.character_type) {
       return res.status(404).json({message: "User or character type not found"});
     }
@@ -176,18 +178,31 @@ export const getCoursesSuggestions = async (req, res) => {
       if (value === "Medium" && !weakSkills.includes(key)) weakSkills.push(key);
     }
 
-    const [books, videos, articles] = await Promise.all([
-      BooksModel.find({skills: {$in: weakSkills}}),
+    const suggestions = await Promise.all([
+      BooksModel.find({skill: {$in: weakSkills}}),
       VideosModel.find({skills: {$in: weakSkills}}),
       ArticlesModel.find({skills: {$in: weakSkills}}),
     ]);
 
+    const models = [
+      BooksModel,
+      videosModel,
+      articlesModel,
+    ]
+
+    for (const index in suggestions){
+      if (suggestions[index].length===0){
+        suggestions[index] = await models[index].find({ level: "Advanced" })
+      }
+    }
+    const [books,videos,articles] = suggestions
     res.status(200).json({
       suggestions: {
         books,
         videos,
         articles,
       },
+      courses:user.courses
     });
   } catch (e) {
     return res.status(500).json({message: `server error: ${e.message}`});
@@ -213,7 +228,7 @@ export const handleUserCourses = async (req, res) => {
     const user = await UserModel.findById(id);
     if (!user) return res.status(404).json({message: "User not found"});
     if (!user.courses) {
-      user.courses = { books: [], videos: [], articles: [] };
+      user.courses = {books: [], videos: [], articles: []};
     }
     const list = user.courses[type];
     const index = list.indexOf(courseId);
@@ -229,7 +244,22 @@ export const handleUserCourses = async (req, res) => {
       courses: user.courses,
     });
 
-  } catch (err) {
-    res.status(500).json({message: `Server error: ${err}`});
+  } catch (e) {
+    res.status(500).json({message: `Server error: ${e}`});
   }
 };
+
+export const getUserRoadmap = async (req, res) => {
+  try {
+    const {id} = req.userData
+    const user = await UserModel.findById(id).populate("character_type")
+      .populate([
+        {path: "courses.books", model: "Books"},
+        {path: "courses.videos", model: "Videos"},
+        {path: "courses.articles", model: "Articles"},
+      ]).select("character_type courses")
+    res.status(200).json({character_type: user.character_type[user.character_type.length - 1], courses: user.courses})
+  } catch (e) {
+    res.status(500).json({message: `Server error: ${e}`})
+  }
+}
