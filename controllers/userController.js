@@ -78,6 +78,7 @@ export const submitExam = async (req, res) => {
       2: "selfManagement",
       3: "technology",
     }
+    let scores = {}
     const score = {
       problemSolving: null,
       leadership: null,
@@ -94,11 +95,11 @@ export const submitExam = async (req, res) => {
       score[keysMap[target]] = score[keysMap[target]] + answers[index].answer_id
       if (+index === answers.length - 1) {
         for (const item of Object.keys(score)) {
+          scores[item] = score[item]
           score[item] = levelHandler(score[item])
         }
       }
     }
-
     const characters = await CharactersModel.find()
     let bestMatch = null;
     let smallestDiff = Infinity;
@@ -122,7 +123,7 @@ export const submitExam = async (req, res) => {
     }
     const user = await UserModel.findByIdAndUpdate(
       id,
-      {character_type: bestMatch._id},
+      {character_type: bestMatch._id, scores},
       {new: true}
     );
 
@@ -153,11 +154,69 @@ export const getCharacterInfo = async (req, res) => {
   }
 }
 
+const usersScoreAverage = async () => {
+  const users = await UserModel.find({}, "scores");
+
+  const totals = {
+    problemSolving: 0,
+    leadership: 0,
+    selfManagement: 0,
+    technology: 0,
+  };
+
+  let count = 0;
+  users.forEach(user => {
+    const score = user.scores;
+    if (!score) return;
+
+    totals.problemSolving += score.problemSolving || 0;
+    totals.leadership += score.leadership || 0;
+    totals.selfManagement += score.selfManagement || 0;
+    totals.technology += score.technology || 0;
+
+    count++;
+  });
+
+  return ({
+    problemSolving: +(totals.problemSolving / count).toFixed(2),
+    leadership: +(totals.leadership / count).toFixed(2),
+    selfManagement: +(totals.selfManagement / count).toFixed(2),
+    technology: +(totals.technology / count).toFixed(2),
+  });
+
+}
+
+const coursesEffectScore = async (courses) => {
+  let skillScore = {
+    problemSolving: 0,
+    selfManagement: 0,
+    technology: 0,
+    leadership: 0
+  }
+
+  const mapLevelupToScore = {
+    "Low to Medium": 2.5,
+    "Medium to High": 3.5,
+    "Low to High": 6,
+  }
+
+  courses.forEach(course => {
+    skillScore[course.skill] += mapLevelupToScore[course.level_up_option];
+  });
+  return skillScore;
+}
+
 export const getCoursesSuggestions = async (req, res) => {
   try {
     const {id} = req.userData;
 
     const user = await UserModel.findById(id).populate("character_type")
+      .populate([
+        {path: "courses.books", model: "Books"},
+        {path: "courses.videos", model: "Videos"},
+        {path: "courses.articles", model: "Articles"},
+      ])
+
     if (!user || !user.character_type) {
       return res.status(404).json({message: "User or character type not found"});
     }
@@ -170,7 +229,6 @@ export const getCoursesSuggestions = async (req, res) => {
       leadership: character.leadership,
       selfManagement: character.selfManagement,
     };
-
     for (const [key, value] of Object.entries(skillMap)) {
       if (value === "Low") weakSkills.push(key);
     }
@@ -184,25 +242,40 @@ export const getCoursesSuggestions = async (req, res) => {
       ArticlesModel.find({skills: {$in: weakSkills}}),
     ]);
 
+    console.log(weakSkills)
+
     const models = [
       BooksModel,
       videosModel,
       articlesModel,
     ]
 
-    for (const index in suggestions){
-      if (suggestions[index].length===0){
-        suggestions[index] = await models[index].find({ level: "Advanced" })
+    for (const index in suggestions) {
+      if (suggestions[index].length === 0) {
+        suggestions[index] = await models[index].find({level: "Advanced"})
       }
     }
-    const [books,videos,articles] = suggestions
+    const allCourses = Object.values(JSON.parse(JSON.stringify(user.courses))).flat()
+    const average = await usersScoreAverage()
+    const couldbe = await coursesEffectScore(allCourses)
+    for (const item in {...user.scores}) {
+      couldbe[item] += user.scores[item]
+    }
+    const scores = {
+      current: user.scores,
+      average,
+      couldbe
+    }
+
+    const [books, videos, articles] = suggestions
     res.status(200).json({
+      scores,
       suggestions: {
         books,
         videos,
         articles,
       },
-      courses:user.courses
+      courses: user.courses,
     });
   } catch (e) {
     return res.status(500).json({message: `server error: ${e.message}`});
@@ -213,8 +286,8 @@ export const getCoursesSuggestions = async (req, res) => {
 export const handleUserCourses = async (req, res) => {
   try {
     const {type} = req.params;
-    const {courseId} = req.body
-    const {id} = req.userData
+    const {courseId} = req.body;
+    const {id} = req.userData;
 
     if (!id || !courseId || !type) {
       return res.status(400).json({message: "something wrong! try again please"});
@@ -225,13 +298,20 @@ export const handleUserCourses = async (req, res) => {
       return res.status(400).json({message: "Invalid course type"});
     }
 
-    const user = await UserModel.findById(id);
+    const user = await UserModel.findById(id).populate([
+      {path: "courses.books", model: "Books",},
+      {path: "courses.videos", model: "Videos",},
+      {path: "courses.articles", model: "Articles",},
+    ]);
     if (!user) return res.status(404).json({message: "User not found"});
+
     if (!user.courses) {
       user.courses = {books: [], videos: [], articles: []};
     }
+
     const list = user.courses[type];
-    const index = list.indexOf(courseId);
+    const index = list.findIndex(item => item._id.toString() === courseId);
+
     if (index > -1) {
       list.splice(index, 1);
     } else {
@@ -239,9 +319,31 @@ export const handleUserCourses = async (req, res) => {
     }
 
     await user.save();
+
+    // Re-populate after save to get updated full course data
+    await user.populate([
+      {path: "courses.books", model: "Books",},
+      {path: "courses.videos", model: "Videos",},
+      {path: "courses.articles", model: "Articles",},
+    ]);
+
+    const allCourses = [
+      ...user.courses.books,
+      ...user.courses.videos,
+      ...user.courses.articles,
+    ];
+
+    const couldbe = await coursesEffectScore(allCourses);
+
+    // Sum current user scores with future improvements
+    for (const item in {...user.scores}) {
+      couldbe[item] += user.scores[item];
+    }
+
     res.status(200).json({
       message: index > -1 ? "Course removed from your profile" : "Course added to your profile",
       courses: user.courses,
+      couldbe,
     });
 
   } catch (e) {
@@ -249,16 +351,36 @@ export const handleUserCourses = async (req, res) => {
   }
 };
 
+
 export const getUserRoadmap = async (req, res) => {
   try {
     const {id} = req.userData
-    const user = await UserModel.findById(id).populate("character_type")
+    const user = await UserModel.findById(id)
+      .populate("character_type")
       .populate([
         {path: "courses.books", model: "Books"},
         {path: "courses.videos", model: "Videos"},
         {path: "courses.articles", model: "Articles"},
-      ]).select("character_type courses")
-    res.status(200).json({character_type: user.character_type[user.character_type.length - 1], courses: user.courses})
+      ]).select("character_type courses scores")
+
+    const allCourses = Object.values(JSON.parse(JSON.stringify(user.courses))).flat()
+    const average = await usersScoreAverage()
+    const couldbe = await coursesEffectScore(allCourses)
+    for (const item in {...user.scores}) {
+      couldbe[item] += user.scores[item]
+    }
+    const scores = {
+      current: user.scores,
+      average,
+      couldbe
+    }
+
+    res.status(200).json({
+        character_type: user.character_type[user.character_type.length - 1],
+        courses: user.courses,
+        scores
+      }
+    )
   } catch (e) {
     res.status(500).json({message: `Server error: ${e}`})
   }

@@ -11,6 +11,7 @@ const ArticlesSchema = new Schema({
     level_up_option: { type: String, enum: ['Low to Medium', 'Medium to High'] },
     description: { type: String },
     publication: { type: String },
+    skill: { type: String },
     url: { type: String, required: true }
 }, {
     timestamps: true

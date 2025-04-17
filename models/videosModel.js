@@ -11,6 +11,7 @@ const VideosSchema = new Schema({
     level_up_option: { type: String, enum: ['Low to Medium', 'Medium to High'] },
     duration:{type:String},
     description: { type: String },
+    skill: { type: String },
     url: { type: String, required: true }
 }, {
     timestamps: true

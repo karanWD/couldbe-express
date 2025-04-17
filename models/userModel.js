@@ -27,7 +27,13 @@ const UserSchema = new Schema({
             format: null
         })
     },
-    character_type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Characters'}]
+    character_type: [{type: mongoose.Schema.Types.ObjectId, ref: 'Characters'}],
+    scores:{
+        problemSolving:{type:Number},
+        leadership:{type:Number},
+        selfManagement:{type:Number},
+        technology:{type:Number},
+    }
 }, {
     timestamps: true
 });
