@@ -1,7 +1,7 @@
 import {Router} from "express";
 import {
   getCharacterInfo,
-  getCoursesSuggestions,  getUserRoadmap,
+  getCoursesSuggestions, getUserRoadmap, getUserStatus,
   handleUserCourses,
   submitExam,
   submitPreferences
@@ -15,5 +15,6 @@ router.get("/character",getCharacterInfo)
 router.get("/suggestions",getCoursesSuggestions)
 router.post("/courses/:type",handleUserCourses)
 router.get("/roadmap",getUserRoadmap)
+router.get("/status",getUserStatus)
 
 export default router

@@ -385,3 +385,47 @@ export const getUserRoadmap = async (req, res) => {
     res.status(500).json({message: `Server error: ${e}`})
   }
 }
+
+
+export const getUserStatus = async (req,res)=>{
+  try {
+    const { id } = req.userData;
+
+    if (!id) {
+      return res.status(400).json({ message: "User ID not provided" });
+    }
+
+    const user = await UserModel.findById(id)
+      .select("character_type preferences courses")
+      .lean();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const hasCourses =
+      user.courses &&
+      (user.courses.books?.length > 0 ||
+        user.courses.videos?.length > 0 ||
+        user.courses.articles?.length > 0);
+
+    if (hasCourses) {
+      return res.status(200).json({ step: 2 }); // Step 2: Has courses
+    }
+
+    if (user.character_type && user.character_type.length > 0) {
+      return res.status(200).json({ step: 1 }); // Step 1: Has character_type but no courses
+    }
+
+    if (user.preferences && Object.keys(user.preferences).length > 0) {
+      return res.status(200).json({ step: 0 }); // Step 0: Has preferences only
+    }
+
+    return res.status(200).json({ step: -1 });
+
+  }
+  catch (err){
+    res.status(500).json({message: `Server error: ${err}`})
+  }
+}
+
