@@ -20,13 +20,12 @@ app.use(express.json());
 app.use("/api/auth", authRouter)
 app.use("/api/careers", careerRouter)
 app.use("/api/user", authenticate, userRouter)
-app.use("*", (res, req) => {
-  console.log('404 ROUTE')
-  res.status(404).json({message:"unexpected route"})
+app.use((req, res) => {
+  res.status(404).json({ message: "unexpected route" })
 })
+
 app.use((err, req, res, next) => {
-  console.log(err)
-  res.status(500).json({message: "Unfortunately, we have some errors here :("})
+  res.status(500).json({message: `Unfortunately, we have some errors here (${err})`})
 })
 
 setupDB()
